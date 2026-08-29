@@ -1,0 +1,11 @@
+node_modules/
+.cache/
+dist/
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+apps/extension/public/
+tabgrant-extension.zip

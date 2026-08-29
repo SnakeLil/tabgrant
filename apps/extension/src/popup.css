@@ -1,0 +1,182 @@
+:root {
+  color-scheme: light dark;
+  font:
+    13px/1.45 system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+body {
+  width: 360px;
+  margin: 0;
+  background: #f5f6f8;
+  color: #16181d;
+}
+
+main {
+  padding: 16px;
+}
+header,
+.section-heading,
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+header {
+  margin-bottom: 14px;
+}
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.eyebrow {
+  margin: 0 0 2px;
+  color: #68707d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.status {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #e5e7eb;
+  font-size: 11px;
+}
+.status.connected {
+  background: #d9f7e3;
+  color: #145a2e;
+}
+.card {
+  margin: 10px 0 14px;
+  padding: 12px;
+  border: 1px solid #d7dae0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(20, 24, 31, 0.05);
+}
+.card.active {
+  border-color: #77c894;
+}
+.title {
+  margin: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.meta {
+  margin: 4px 0 0;
+  color: #68707d;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.reason {
+  margin: 9px 0;
+}
+.warning {
+  margin: 8px 0;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #fff3cd;
+  color: #704e00;
+  font-size: 10px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 9px 0;
+}
+.chip {
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: #eef0f4;
+  color: #454c58;
+  font-size: 10px;
+}
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #1769e0;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+button.secondary {
+  background: #e8eaee;
+  color: #252a32;
+}
+button.danger {
+  background: #a72e2e;
+}
+button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.pairing-code {
+  display: block;
+  margin-top: 10px;
+  border: 1px solid #c8ccd4;
+  border-radius: 8px;
+  padding: 7px 8px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.link-button {
+  padding: 4px;
+  color: #1769e0;
+  background: transparent;
+}
+.empty {
+  padding: 18px 8px;
+  color: #68707d;
+  text-align: center;
+}
+.error {
+  padding: 8px;
+  border-radius: 8px;
+  background: #fde4e4;
+  color: #8f1f1f;
+}
+footer {
+  margin-top: 14px;
+  color: #7b828e;
+  font-size: 10px;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1d2026;
+    color: #f2f3f5;
+  }
+  .card {
+    border-color: #3c414b;
+    background: #292d35;
+    box-shadow: none;
+  }
+  .card.active {
+    border-color: #498e60;
+  }
+  .chip,
+  button.secondary {
+    background: #3a3f49;
+    color: #f2f3f5;
+  }
+  .status {
+    background: #3a3f49;
+  }
+  .warning {
+    background: #493b17;
+    color: #ffe7a3;
+  }
+}

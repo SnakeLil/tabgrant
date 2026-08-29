@@ -1,0 +1,26 @@
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: Security and authorization
+      labels:
+        - security
+        - policy
+    - title: Browser compatibility
+      labels:
+        - compatibility
+        - browser-extension
+    - title: Features
+      labels:
+        - enhancement
+        - feature
+    - title: Fixes
+      labels:
+        - bug
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other changes
+      labels:
+        - "*"

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TabGrant</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">Local browser capability broker</p>
+          <h1>TabGrant</h1>
+        </div>
+        <span id="broker-status" class="status">Checking…</span>
+      </header>
+
+      <section id="pairing-section" class="card" hidden>
+        <p class="title">Pair this extension</p>
+        <p class="meta">
+          Confirm that the system dialog shows this exact one-time code and extension identity.
+        </p>
+        <code id="pairing-code" class="pairing-code"></code>
+        <button id="pair" type="button">Pair this extension</button>
+      </section>
+      <section id="grant-section" aria-live="polite"></section>
+      <section>
+        <div class="section-heading">
+          <h2>Access requests</h2>
+          <button id="reconnect" class="link-button" type="button">Reconnect</button>
+        </div>
+        <div id="pending-list" aria-live="polite"></div>
+      </section>
+      <p id="error" class="error" role="alert" hidden></p>
+      <footer>Only this tab and origin · revoke at any time</footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

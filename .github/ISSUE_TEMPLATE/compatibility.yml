@@ -1,0 +1,79 @@
+name: Compatibility report
+description: Report behavior for a specific browser or agent/MCP client.
+title: "[Compatibility]: "
+labels:
+  - compatibility
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This Developer Preview has no supported compatibility matrix. Reports help establish a future one but are not support claims.
+
+        Use only disposable browser profiles and synthetic accounts. Never paste private session data, pairing codes, or key material.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing compatibility reports.
+          required: true
+        - label: This report contains no vulnerability or confidential data.
+          required: true
+        - label: I tested with a disposable browser profile and synthetic data.
+          required: true
+        - label: I understand a successful result does not establish official support.
+          required: true
+  - type: input
+    id: revision
+    attributes:
+      label: TabGrant version or commit
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and architecture
+      placeholder: Ubuntu 24.04, x86_64
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and exact version
+      placeholder: Google Chrome 152.0.x
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Agent or MCP client and exact version
+    validations:
+      required: true
+  - type: dropdown
+    id: pairing_state
+    attributes:
+      label: Browser pairing lifecycle state
+      description: Select the last state reached. Never paste the pairing code or any key material.
+      options:
+        - Not yet paired
+        - Code displayed, confirmation not attempted
+        - OS approval completed, key proof pending or failed
+        - Paired and connected
+        - Pairing expired or was rejected
+        - Not applicable or unknown
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Sanitized configuration
+      description: Exclude tokens, pairing codes, key material, paths that identify people, and private URLs.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Result and reproduction
+      description: Describe what worked or failed and list exact steps.
+    validations:
+      required: true

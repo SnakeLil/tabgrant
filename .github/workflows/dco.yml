@@ -1,0 +1,33 @@
+name: DCO
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  signed-off-commits:
+    name: Signed-off commits
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Verify Developer Certificate of Origin sign-offs
+        env:
+          BASE_COMMIT: ${{ github.event.pull_request.base.sha }}
+          HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-dco.mjs "$BASE_COMMIT" "$HEAD_COMMIT"

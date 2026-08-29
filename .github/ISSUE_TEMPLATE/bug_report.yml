@@ -1,0 +1,94 @@
+name: Bug report
+description: Report a reproducible TabGrant defect using synthetic data.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. TabGrant is a Developer Preview.
+
+        **Do not include credentials, cookies, tokens, pairing codes, private keys, private URLs, private page content, or vulnerability details.** Report security issues according to `SECURITY.md`.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: This is not a security vulnerability or confidential report.
+          required: true
+        - label: I reproduced this with synthetic data and a disposable browser profile.
+          required: true
+        - label: I understand this Developer Preview has no supported release or compatibility guarantee.
+          required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Version or commit
+      description: Prefer the full commit SHA. Use a version only if it identifies an actual preview tag.
+      placeholder: Full commit SHA or preview tag
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js, browser, extension, and agent/MCP client versions.
+      placeholder: macOS 15; Node 22.x; Chrome 152.x; client name/version
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Broker or MCP
+        - Browser extension
+        - Protocol
+        - Policy or approval
+        - Build or CI
+        - Documentation
+        - Unsure
+    validations:
+      required: true
+  - type: dropdown
+    id: pairing_state
+    attributes:
+      label: Browser pairing lifecycle state
+      description: Select the observed state. Never paste the pairing code or any key material.
+      options:
+        - Not yet paired
+        - Code displayed, confirmation not attempted
+        - OS approval completed, key proof pending or failed
+        - Paired and connected
+        - Pairing expired or was rejected
+        - Not applicable or unknown
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: List exact sanitized steps and configuration.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or other evidence
+      description: Remove private origins, page content, pairing codes, key material, grant material, credentials, and tokens.
+      render: shell

@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "TabGrant",
+  "description": "Let TabGrant give a local AI agent temporary access to the current tab.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "105",
+  "permissions": ["activeTab", "scripting", "nativeMessaging", "storage"],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "TabGrant",
+    "default_popup": "popup.html"
+  }
+}

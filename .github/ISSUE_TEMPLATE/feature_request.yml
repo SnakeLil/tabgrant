@@ -1,0 +1,63 @@
+name: Feature request or RFC proposal
+description: Propose a bounded capability or a change to architecture or policy.
+title: "[Proposal]: "
+labels:
+  - proposal
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Changes to protocol semantics, browser permissions, grant scope, approvals, telemetry, persistence, or public APIs are treated as RFCs.
+
+        TabGrant will not add CAPTCHA bypass, stealth, credential extraction, arbitrary JavaScript, or ambient access to all tabs. Never include pairing codes, private keys, or other live authentication material in a proposal.
+
+        The project is a Developer Preview. Proposals must not describe roadmap functionality as already shipped or supported.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues, ADRs, and roadmap items.
+          required: true
+        - label: This proposal preserves explicit user authorization and does not depend on bypassing platform controls.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user need without prescribing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include user-visible grant, approval, and revoke behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy impact
+      description: Cover permissions, pairing and key lifecycle impact, OS user-presence requirements, data read/written, retention, third parties, abuse cases, and failure behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Acceptance evidence
+      description: What tests or measurements would demonstrate safe completion?
+    validations:
+      required: true

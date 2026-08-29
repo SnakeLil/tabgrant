@@ -1,0 +1,14 @@
+# Bootstrap ownership. Replace @SnakeLil with a two-person @tabgrant/security
+# team before a supported public artifact. See MAINTAINERS.md.
+* @SnakeLil
+
+# Security- and release-critical surfaces currently require bootstrap-owner review.
+/.github/ @SnakeLil
+/SECURITY.md @SnakeLil
+/PRIVACY.md @SnakeLil
+/GOVERNANCE.md @SnakeLil
+/docs/THREAT_MODEL.md @SnakeLil
+/docs/SECURITY_ARCHITECTURE.md @SnakeLil
+/apps/extension/ @SnakeLil
+/packages/policy/ @SnakeLil
+/packages/protocol/ @SnakeLil

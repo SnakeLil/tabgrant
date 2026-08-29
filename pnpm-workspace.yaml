@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+
+strictDepBuilds: true
+minimumReleaseAge: 720
+
+overrides:
+  esbuild: 0.28.2

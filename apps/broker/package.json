@@ -1,0 +1,65 @@
+{
+  "name": "tabgrant",
+  "version": "0.1.0",
+  "description": "Local-first, tab-scoped capability broker and MCP server for AI agents.",
+  "author": {
+    "name": "lilsnake",
+    "url": "https://github.com/SnakeLil"
+  },
+  "keywords": [
+    "ai-agents",
+    "browser-extension",
+    "browser-automation",
+    "mcp",
+    "security"
+  ],
+  "homepage": "https://github.com/SnakeLil/tabgrant#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SnakeLil/tabgrant.git",
+    "directory": "apps/broker"
+  },
+  "bugs": {
+    "url": "https://github.com/SnakeLil/tabgrant/issues"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "tabgrant": "dist/cli.js",
+    "tabgrant-mcp": "dist/mcp-entry.js",
+    "tabgrant-native-host": "dist/native-host-entry.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "clean": "rm -rf dist coverage",
+    "dev": "tsx src/cli.ts",
+    "prepack": "pnpm build",
+    "start:daemon": "tsx src/cli.ts daemon",
+    "start:mcp": "tsx src/mcp-entry.ts",
+    "test": "vitest run",
+    "typecheck": "pnpm --filter @tabgrant/protocol build && pnpm --filter @tabgrant/policy build && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.5.2"
+  },
+  "devDependencies": {
+    "@tabgrant/policy": "workspace:*",
+    "@tabgrant/protocol": "workspace:*",
+    "tsup": "8.5.1",
+    "tsx": "4.23.12"
+  },
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
