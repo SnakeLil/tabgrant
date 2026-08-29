@@ -151,7 +151,11 @@ protect against arbitrary native code already executing as the same OS user.
    challenge bound to the extension ID, browser-instance ID, and public-key
    fingerprint on that connection. The extension signs with its non-extractable
    IndexedDB key.
-6. Completion consumes the challenge before verification. A valid signature
+6. The extension serializes startup authentication and popup pairing on the exact
+   Native Messaging port. The broker permits one authentication transition or
+   unexpired challenge per connection; competing starts/pairs fail busy, and an
+   unknown challenge ID leaves the valid challenge intact.
+7. A matching completion consumes the challenge before verification. A valid signature
    atomically writes the extension ID, public key/fingerprint, and timestamp to
    owner-only `browser-pairing.json` (`0600` on supported Unix) and upgrades the
    same connection to `browser`. Failure writes nothing.
@@ -260,7 +264,7 @@ integration and threat model.
 
 ## Verification boundary
 
-The 106 unit/integration tests (62 broker, 18 extension, 8 protocol, and 18 policy)
+The 109 unit/integration tests (63 broker, 20 extension, 8 protocol, and 18 policy)
 include a real MCP SDK STDIO client connected to a
 spawned MCP subprocess; broker-focused tests otherwise use an in-process mock
 browser. A separate `pnpm e2e:chrome:ci` run completed on Chrome for Testing

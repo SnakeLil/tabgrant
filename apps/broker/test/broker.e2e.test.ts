@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   browserAuthPayload,
   browserPublicKeyFingerprint,
-  type PairingApprover,
   type BrowserPublicKeyJwk,
+  type PairingApprover,
 } from "../src/auth.js";
 import { BrokerDaemon } from "../src/daemon.js";
 import { connectBroker, type BrokerClient } from "../src/client.js";
@@ -295,6 +295,71 @@ describe("broker end-to-end authority boundary", () => {
     await expect(access(join(directory, "browser-pairing.json"))).resolves.toBeUndefined();
   });
 
+  it("serializes browser auth transitions and preserves a challenge after an unknown id", async () => {
+    let releaseLookup: ((paired: boolean) => void) | undefined;
+    let signalLookupStarted: (() => void) | undefined;
+    const lookupStarted = new Promise<void>((resolve) => {
+      signalLookupStarted = resolve;
+    });
+    const pairingLookup: ConstructorParameters<typeof BrokerDaemon>[3] = () => {
+      signalLookupStarted?.();
+      return new Promise<boolean>((resolve) => {
+        releaseLookup = resolve;
+      });
+    };
+    const { paths, daemon, directory } = await startTestDaemon(
+      { approve: () => Promise.resolve(true) },
+      Date.now,
+      pairingLookup,
+    );
+    const client = await connectBroker({ clientId: "browser-relay", taskId: "auth-race" }, paths);
+    cleanups.push(async () => {
+      client.socket.destroy();
+      await daemon.stop();
+      await rm(directory, { recursive: true, force: true });
+    });
+    const keys = await browserKeyPair();
+    const extensionId = "p".repeat(32);
+    const browserInstanceId = randomUUID();
+    const identity = { extensionId, browserInstanceId, publicKey: keys.publicKey };
+    const pairing = { ...identity, pairingCode: pairingCodeForTest() };
+
+    const initialAuthentication = client.peer.request("browser.auth.start", identity);
+    await lookupStarted;
+    await expect(client.peer.request("browser.auth.pair", pairing)).rejects.toMatchObject({
+      code: "BROWSER_AUTHENTICATION_BUSY",
+    });
+    releaseLookup?.(false);
+    await expect(initialAuthentication).resolves.toEqual({ paired: false });
+
+    const challenge = (await client.peer.request("browser.auth.pair", pairing)) as {
+      paired: true;
+      challengeId: string;
+      challenge: string;
+      expiresAt: number;
+    };
+    await expect(client.peer.request("browser.auth.start", identity)).rejects.toMatchObject({
+      code: "BROWSER_AUTHENTICATION_BUSY",
+    });
+    await expect(client.peer.request("browser.auth.pair", pairing)).rejects.toMatchObject({
+      code: "BROWSER_AUTHENTICATION_BUSY",
+    });
+
+    const signature = await signChallenge(challenge, extensionId, browserInstanceId, keys);
+    await expect(
+      client.peer.request("browser.auth.complete", {
+        challengeId: randomUUID(),
+        signature,
+      }),
+    ).rejects.toMatchObject({ code: "BROWSER_AUTHENTICATION_FAILED" });
+    await expect(
+      client.peer.request("browser.auth.complete", {
+        challengeId: challenge.challengeId,
+        signature,
+      }),
+    ).resolves.toMatchObject({ authenticated: true, role: "browser" });
+  });
+
   it("cannot pair an attacker-selected key when local user presence denies it", async () => {
     let approvalRequest: Parameters<PairingApprover["approve"]>[0] | undefined;
     const denyingApprover: PairingApprover = {
@@ -553,6 +618,7 @@ function pairingCodeForTest(): string {
 async function startTestDaemon(
   pairingApprover: PairingApprover = { approve: () => Promise.resolve(true) },
   now: () => number = Date.now,
+  browserPairingLookup?: ConstructorParameters<typeof BrokerDaemon>[3],
 ): Promise<{
   directory: string;
   paths: RuntimePaths;
@@ -568,7 +634,7 @@ async function startTestDaemon(
     auditPath: join(directory, "audit.jsonl"),
     killSwitchPath: join(directory, "disabled.json"),
   };
-  const daemon = new BrokerDaemon(paths, pairingApprover, now);
+  const daemon = new BrokerDaemon(paths, pairingApprover, now, browserPairingLookup);
   await daemon.start();
   return { directory, paths, daemon };
 }

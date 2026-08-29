@@ -17,7 +17,7 @@ By participating, you agree to follow the [Code of Conduct](./CODE_OF_CONDUCT.md
 
 ## Development setup
 
-Requirements are Node.js 20.18 or newer, Corepack, and the pnpm version declared
+Requirements are Node.js 20.19.0 or newer, Corepack, and the pnpm version declared
 in `package.json`. macOS and Linux are the currently implemented native-host
 platforms.
 
@@ -32,7 +32,7 @@ pnpm pack:smoke
 Use a disposable browser profile with synthetic accounts for browser testing.
 Never run development builds against your everyday profile or valuable accounts.
 
-`pnpm check` runs formatting, lint, type checking, 106 package/integration tests,
+`pnpm check` runs formatting, lint, type checking, 109 package/integration tests,
 and the extension-authority security gate. The broker suite includes a real MCP
 SDK client connected to a spawned MCP subprocess, but it does not launch Chrome or
 an OS pairing prompt. `pnpm pack:smoke` builds and installs a temporary package
@@ -113,6 +113,10 @@ Before claiming browser or client compatibility, record a manual end-to-end run:
 
 `pnpm e2e:chrome:ci` uses a source-injected approver and programmatic popup
 operation, so it cannot supply OS-prompt or toolbar evidence.
+The GitHub-hosted Ubuntu workflow uses the narrower
+`pnpm e2e:chrome:ci:linux-no-sandbox` command because that runner blocks Chrome's
+user-namespace sandbox. The command is guarded to explicit Linux `CI=true` runs
+and a disposable profile; do not use it for local, manual, or production browsing.
 `pnpm e2e:chrome:manual` is intended to exercise the production OS prompt and
 human toolbar/grant gestures, but that manual flow is still being debugged and is
 not currently recorded as passed. The automated/in-process tests remain necessary

@@ -44,7 +44,11 @@ New browser keys use this protocol:
 7. After approval, the broker takes a fresh timestamp and creates a 30-second
    challenge bound to that connection, extension ID, browser-instance ID, public
    key, and fingerprint. The extension signs it with the non-extractable key.
-8. Completion consumes the challenge before verifying the signature. Only a valid
+8. The extension serializes startup authentication and popup pairing on the exact
+   Native Messaging port. The broker admits one authentication transition or live
+   challenge per connection; competing starts/pairs fail busy, while an unknown
+   completion ID does not consume the valid challenge.
+9. A matching completion consumes the challenge before verifying the signature. Only a valid
    signature atomically persists `browser-pairing.json` with the extension ID,
    public key/fingerprint, and timestamp, applies owner-only `0600` permissions on
    supported Unix platforms, and upgrades that same connection to `browser`.

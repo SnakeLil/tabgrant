@@ -66,7 +66,11 @@ storage after every attempt so a retry rotates it.
 After approval returns, the broker takes a fresh timestamp and creates a
 connection-local 30-second challenge bound to the extension ID, browser-instance
 ID, public key, and fingerprint. The extension signs it with the non-extractable
-key. Completion consumes the challenge before verification. Only a valid signature
+key. Startup authentication and popup pairing share a serial queue bound to the
+exact Native Messaging port. The broker permits one authentication transition or
+live challenge per connection; competing starts/pairs fail busy, and an unknown
+challenge ID cannot consume the valid challenge. A matching completion consumes
+the challenge before verification. Only a valid signature
 atomically persists `browser-pairing.json` with the extension ID, public key,
 fingerprint, and timestamp, applies `0600` mode on supported Unix, and upgrades
 that same connection to browser authority. Wrong-key, expired, cross-connection,
@@ -280,7 +284,7 @@ and release/rollback rehearsal.
 
 ## Verification boundary
 
-The 106 automated tests comprise 62 broker, 18 extension, 8 protocol, and 18 policy
+The 109 automated tests comprise 63 broker, 20 extension, 8 protocol, and 18 policy
 tests. They include a real MCP SDK STDIO client spawning the MCP subprocess,
 session isolation and disconnect revocation, pairing/challenge boundaries,
 resource limits, persistent kill, installer race resistance, key separation, and
@@ -293,6 +297,14 @@ snapshot/highlight/scroll/revoke. It confirms password values are redacted and
 page/pairing content is absent from audit records. The CI harness imports
 `BrokerDaemon` source and injects an approver that accepts only the exact
 extension identity, pairing code, and fingerprint observed in that run.
+
+GitHub's Ubuntu runner invokes a separate guarded command that adds
+`--no-sandbox` for the disposable Chrome for Testing process. The policy helper
+requires CI mode, Linux, and `CI=true`, and the harness rechecks that its profile
+is under the generated temporary test directory before launching. Default and
+manual runs retain Chrome's sandbox. This exception reduces the fidelity of the
+hosted Linux test and must never be copied into production or ordinary browsing
+instructions.
 
 The E2E writes its Native Messaging manifest only inside a temporary browser
 profile and does not touch a global manifest. It programmatically opens and

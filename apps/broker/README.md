@@ -167,7 +167,10 @@ proof succeeds. Approval creates a fresh 30-second challenge on the same
 connection. Only a valid signature from the non-extractable extension key writes
 the paired public key/fingerprint to owner-only `browser-pairing.json` and upgrades
 that connection to browser authority. A failed signature consumes the challenge
-without creating the pairing file. Arbitrary same-UID code that can manipulate
+without creating the pairing file. Startup authentication and popup pairing are
+serialized on the exact Native Messaging port. A broker connection permits one
+authentication transition or live challenge; competing starts/pairs fail busy,
+and an unknown challenge ID leaves the valid challenge intact. Arbitrary same-UID code that can manipulate
 local files, sockets, processes, or the browser remains out of scope.
 
 ## Runtime state
@@ -272,5 +275,5 @@ real macOS/Linux pairing prompt, and wait for human toolbar and grant clicks. Th
 manual OS/UI flow is still being debugged and has not produced claimed evidence.
 It requires a graphical session and Linux `zenity`.
 
-The current automated suite contains 106 tests: 62 broker, 18 extension, 8
+The current automated suite contains 109 tests: 63 broker, 20 extension, 8
 protocol, and 18 policy.

@@ -21,6 +21,7 @@ import {
   type WireRequest,
   type WireResponse,
 } from "./protocol.js";
+import { SerialQueue } from "./serial-queue.js";
 import { grantableOrigin, sameOriginNavigation } from "./security.js";
 
 const NATIVE_HOST = "io.tabgrant.bridge";
@@ -58,6 +59,7 @@ class ExtensionRpcError extends Error {
 }
 
 let nativePort: chrome.runtime.Port | undefined;
+let authenticatedNativePort: chrome.runtime.Port | undefined;
 let brokerConnected = false;
 let brokerKilled = false;
 let browserPaired = false;
@@ -65,6 +67,7 @@ let browserInstanceId: string | undefined;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let expiryTimer: ReturnType<typeof setTimeout> | undefined;
 const pendingRpc = new Map<string, PendingRpc>();
+const browserAuthenticationQueue = new SerialQueue();
 
 chrome.runtime.onInstalled.addListener(() => void initialize());
 chrome.runtime.onStartup.addListener(() => void initialize());
@@ -118,7 +121,7 @@ async function registerBrowser(port: chrome.runtime.Port): Promise<void> {
   try {
     const instanceId = browserInstanceId ?? (await getBrowserInstanceId());
     browserInstanceId = instanceId;
-    if (!(await authenticateBrowser(instanceId))) {
+    if (!(await authenticateBrowser(instanceId, port))) {
       browserPaired = false;
       await broadcastState();
       return;
@@ -139,13 +142,17 @@ async function registerAuthenticatedBrowser(
   instanceId: string,
 ): Promise<void> {
   try {
-    await requestBroker("browser.register", {
-      browserInstanceId: instanceId,
-      extensionId: chrome.runtime.id,
-      browserName: "Chromium",
-      browserVersion: chrome.runtime.getManifest().version,
-    });
-    const pendingResult = await requestBroker("access.pending.list", {});
+    await requestBroker(
+      "browser.register",
+      {
+        browserInstanceId: instanceId,
+        extensionId: chrome.runtime.id,
+        browserName: "Chromium",
+        browserVersion: chrome.runtime.getManifest().version,
+      },
+      port,
+    );
+    const pendingResult = await requestBroker("access.pending.list", {}, port);
     const pending = parsePendingList(pendingResult);
     if (!pending)
       throw new ExtensionRpcError(
@@ -171,6 +178,7 @@ async function handleNativeDisconnect(port: chrome.runtime.Port): Promise<void> 
   void chrome.runtime.lastError;
   if (nativePort !== port) return;
   nativePort = undefined;
+  if (authenticatedNativePort === port) authenticatedNativePort = undefined;
   brokerConnected = false;
   rejectPendingRpc(new ExtensionRpcError("BROKER_DISCONNECTED", "Native broker disconnected."));
   const state = await readState();
@@ -349,7 +357,7 @@ async function handlePopupMessage(
   if (request.type === "popup.pair") {
     const port = nativePort;
     if (!port) throw new Error("The native broker relay is offline.");
-    const instanceId = await pairBrowser();
+    const instanceId = await pairBrowser(port);
     await registerAuthenticatedBrowser(port, instanceId);
     return { ok: true, state: await popupState() };
   }
@@ -551,9 +559,13 @@ async function teardownBridge(tabId: number, documentId: string): Promise<void> 
   }
 }
 
-function requestBroker(method: string, params: unknown): Promise<unknown> {
-  const port = nativePort;
-  if (!port)
+function requestBroker(
+  method: string,
+  params: unknown,
+  requiredPort?: chrome.runtime.Port,
+): Promise<unknown> {
+  const port = requiredPort ?? nativePort;
+  if (!port || nativePort !== port)
     return Promise.reject(
       new ExtensionRpcError("BROKER_DISCONNECTED", "Native broker is unavailable."),
     );
@@ -638,15 +650,27 @@ async function popupState(): Promise<PopupState> {
   };
 }
 
-async function authenticateBrowser(instanceId: string): Promise<boolean> {
+function authenticateBrowser(instanceId: string, port: chrome.runtime.Port): Promise<boolean> {
+  return browserAuthenticationQueue.run(() => authenticateBrowserExclusive(instanceId, port));
+}
+
+async function authenticateBrowserExclusive(
+  instanceId: string,
+  port: chrome.runtime.Port,
+): Promise<boolean> {
+  if (authenticatedNativePort === port) return true;
   const keys = await getOrCreateBrowserSigningKey();
   const publicKey = await exportBrowserPublicKey(keys.publicKey);
   const result = parseBrowserAuthChallenge(
-    await requestBroker("browser.auth.start", {
-      extensionId: chrome.runtime.id,
-      browserInstanceId: instanceId,
-      publicKey,
-    }),
+    await requestBroker(
+      "browser.auth.start",
+      {
+        extensionId: chrome.runtime.id,
+        browserInstanceId: instanceId,
+        publicKey,
+      },
+      port,
+    ),
   );
   if (!result) {
     throw new ExtensionRpcError(
@@ -655,30 +679,47 @@ async function authenticateBrowser(instanceId: string): Promise<boolean> {
     );
   }
   if (!result.paired) return false;
-  await completeBrowserAuthentication(result, instanceId, publicKey, keys.privateKey);
+  await completeBrowserAuthentication(result, instanceId, publicKey, keys.privateKey, port);
+  if (nativePort !== port) {
+    throw new ExtensionRpcError("BROKER_DISCONNECTED", "Native broker disconnected.");
+  }
+  authenticatedNativePort = port;
   await chrome.storage.session.remove(PAIRING_CODE_KEY);
   return true;
 }
 
-async function pairBrowser(): Promise<string> {
+function pairBrowser(port: chrome.runtime.Port): Promise<string> {
+  return browserAuthenticationQueue.run(() => pairBrowserExclusive(port));
+}
+
+async function pairBrowserExclusive(port: chrome.runtime.Port): Promise<string> {
   const instanceId = browserInstanceId ?? (await getBrowserInstanceId());
   browserInstanceId = instanceId;
+  if (authenticatedNativePort === port) return instanceId;
   const keys = await getOrCreateBrowserSigningKey();
   const publicKey = await exportBrowserPublicKey(keys.publicKey);
   const pairingCode = await getBrowserPairingCode();
   try {
     const challenge = parseBrowserAuthChallenge(
-      await requestBroker("browser.auth.pair", {
-        extensionId: chrome.runtime.id,
-        browserInstanceId: instanceId,
-        publicKey,
-        pairingCode,
-      }),
+      await requestBroker(
+        "browser.auth.pair",
+        {
+          extensionId: chrome.runtime.id,
+          browserInstanceId: instanceId,
+          publicKey,
+          pairingCode,
+        },
+        port,
+      ),
     );
     if (!challenge?.paired) {
       throw new ExtensionRpcError("BROWSER_PAIRING_FAILED", "Browser pairing was not approved.");
     }
-    await completeBrowserAuthentication(challenge, instanceId, publicKey, keys.privateKey);
+    await completeBrowserAuthentication(challenge, instanceId, publicKey, keys.privateKey, port);
+    if (nativePort !== port) {
+      throw new ExtensionRpcError("BROKER_DISCONNECTED", "Native broker disconnected.");
+    }
+    authenticatedNativePort = port;
     browserPaired = true;
     return instanceId;
   } finally {
@@ -693,6 +734,7 @@ async function completeBrowserAuthentication(
   instanceId: string,
   publicKey: BrowserPublicKeyJwk,
   privateKey: CryptoKey,
+  port: chrome.runtime.Port,
 ): Promise<void> {
   const fingerprint = await publicKeyFingerprint(publicKey);
   const payload = [
@@ -708,10 +750,14 @@ async function completeBrowserAuthentication(
     privateKey,
     new TextEncoder().encode(payload),
   );
-  const response = await requestBroker("browser.auth.complete", {
-    challengeId: challenge.challengeId,
-    signature: base64Url(new Uint8Array(signature)),
-  });
+  const response = await requestBroker(
+    "browser.auth.complete",
+    {
+      challengeId: challenge.challengeId,
+      signature: base64Url(new Uint8Array(signature)),
+    },
+    port,
+  );
   if (
     !isRecord(response) ||
     !isEmptyOrOnlyKeys(response, ["authenticated", "role"]) ||

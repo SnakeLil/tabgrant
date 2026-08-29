@@ -46,7 +46,7 @@ accounts. See [Current verification boundary](#current-verification-boundary).
 
 ### 1. Build TabGrant
 
-Requirements: macOS or Linux, Node.js 20.18 or newer, Corepack, and a current
+Requirements: macOS or Linux, Node.js 20.19.0 or newer, Corepack, and a current
 Chromium-based browser. Automated validation currently targets Chrome for Testing
 152.0.7977.64; other browser versions and channels are not yet certified.
 
@@ -113,7 +113,11 @@ fresh 30-second challenge on that same connection. Only a signature from the
 extension's non-extractable key persists `browser-pairing.json` with owner-only
 `0600` permissions on supported Unix platforms and upgrades the connection from
 agent to browser authority. A failed signature consumes the challenge and leaves
-no pairing record. The native host only relays messages and never receives the
+no pairing record. The extension serializes startup authentication and popup
+pairing on the exact Native Messaging port. The broker allows one authentication
+transition or live challenge per connection; competing starts/pairs fail busy,
+and an unknown challenge ID cannot consume the valid challenge. The native host
+only relays messages and never receives the
 private key. The native host and MCP adapter can start the broker automatically.
 
 Check the persistent kill state, local secrets, native-host manifest, and broker
@@ -274,8 +278,8 @@ actions, but those are not exposed by the current MCP server or extension.
 
 As of 2026-08-30, this checkout passes:
 
-- `pnpm check`, including formatting, lint, type checking, 106 automated tests
-  (62 broker, 18 extension, 8 protocol, and 18 policy), and the manifest/source
+- `pnpm check`, including formatting, lint, type checking, 109 automated tests
+  (63 broker, 20 extension, 8 protocol, and 18 policy), and the manifest/source
   security gate;
 - `pnpm build`, producing the extension and three broker executables;
 - `pnpm pack:smoke`, which installs the packed `tabgrant@0.1.0` tarball and runs
@@ -298,8 +302,14 @@ Messaging manifest inside that profile; it does not read, create, replace, or
 remove a global browser manifest. It copies the built extension to a temporary
 directory and adds only `http://127.0.0.1/*` as a test-only host permission. The
 production manifest continues to declare no `host_permissions`, and the security
-gate rejects adding one. The CI test opens and operates the popup
-programmatically. Because it bypasses the production `osascript`/`zenity`
+gate rejects adding one. On GitHub's Ubuntu runner, only the dedicated
+`e2e:chrome:ci:linux-no-sandbox` command adds Chrome's `--no-sandbox` flag to
+work around the runner's restricted user-namespace environment. The harness
+rejects that flag unless it is an explicit Linux `CI=true` run using its
+disposable profile; the default and manual commands retain Chrome's sandbox.
+This CI exception is not a production configuration or evidence for a sandboxed
+browser deployment. The CI test opens and operates the popup programmatically.
+Because it bypasses the production `osascript`/`zenity`
 approver and does not use a real toolbar gesture, it proves neither OS
 user-presence UI nor production `activeTab` acquisition. [Branded Chrome removed command-line unpacked-extension loading in
 Chrome 137](https://developer.chrome.com/blog/extension-news-june-2025), so

@@ -190,7 +190,7 @@ human toolbar/grant gestures, but is still being debugged and has not passed.
 Windows, Firefox, Safari, hosted agents, remote brokers, simultaneous multi-tab
 grants, and write actions are not currently supported.
 
-The current automated suite contains 106 tests: 62 broker, 18 extension, 8
+The current automated suite contains 109 tests: 63 broker, 20 extension, 8
 protocol, and 18 policy. These controls do not protect against arbitrary same-UID
 code that can alter user-owned files/processes/socket state, control the browser,
 or consume the global pairing-prompt budget.

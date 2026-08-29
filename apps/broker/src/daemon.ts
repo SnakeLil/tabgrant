@@ -53,6 +53,7 @@ export class BrokerDaemon {
     private readonly paths: RuntimePaths = getRuntimePaths(),
     private readonly pairingApprover: PairingApprover = createSystemPairingApprover(),
     private readonly now: () => number = Date.now,
+    private readonly browserPairingLookup: typeof isPairedBrowserKey = isPairedBrowserKey,
   ) {}
 
   public async start(): Promise<void> {
@@ -141,7 +142,25 @@ export class BrokerDaemon {
     let context: AuthenticatedContext | undefined;
     let browserChallenge: BrowserAuthChallenge | undefined;
     let browserChallengePairsKey = false;
+    let browserAuthTransitionActive = false;
     const pairingAttempts: number[] = [];
+
+    const clearExpiredBrowserChallenge = (): void => {
+      if (browserChallenge !== undefined && browserChallenge.expiresAt <= this.now()) {
+        browserChallenge = undefined;
+        browserChallengePairsKey = false;
+      }
+    };
+    const reserveBrowserAuthTransition = (): void => {
+      clearExpiredBrowserChallenge();
+      if (browserAuthTransitionActive || browserChallenge !== undefined) {
+        throw new BrokerRpcError(
+          "BROWSER_AUTHENTICATION_BUSY",
+          "Another browser authentication operation is active on this connection.",
+        );
+      }
+      browserAuthTransitionActive = true;
+    };
 
     const peer = new RpcPeer(socket, async (method, params) => {
       if (method === "session.hello") {
@@ -174,103 +193,121 @@ export class BrokerDaemon {
       if (method === "browser.auth.start") {
         this.requireAgentContext(context);
         const start = BrowserAuthStartSchema.parse(params);
-        if (!(await isPairedBrowserKey(this.paths.baseDirectory, start))) {
-          browserChallenge = undefined;
+        reserveBrowserAuthTransition();
+        try {
+          if (!(await this.browserPairingLookup(this.paths.baseDirectory, start))) {
+            return { paired: false };
+          }
+          browserChallenge = createBrowserAuthChallenge(start, this.now());
           browserChallengePairsKey = false;
-          return { paired: false };
+          return publicBrowserChallenge(browserChallenge);
+        } finally {
+          browserAuthTransitionActive = false;
         }
-        browserChallenge = createBrowserAuthChallenge(start);
-        browserChallengePairsKey = false;
-        return publicBrowserChallenge(browserChallenge);
       }
       if (method === "browser.auth.pair") {
         this.requireAgentContext(context);
         const pairing = BrowserPairingRequestSchema.parse(params);
-        this.reservePairingAttempt(pairingAttempts);
-        if (this.pairingPromptActive) {
-          throw new BrokerRpcError("BROWSER_PAIRING_BUSY", "Another pairing prompt is active.");
-        }
-        const now = this.now();
-        if (
-          this.lastPairingPromptAt !== undefined &&
-          now - this.lastPairingPromptAt < PAIRING_PROMPT_COOLDOWN_MS
-        ) {
-          throw new BrokerRpcError(
-            "BROWSER_PAIRING_COOLDOWN",
-            "Browser pairing is temporarily rate limited.",
-          );
-        }
-        this.reserveGlobalPairingAttempt();
-        this.pairingPromptActive = true;
-        let approved: boolean;
+        reserveBrowserAuthTransition();
         try {
-          approved = await this.pairingApprover.approve({
+          this.reservePairingAttempt(pairingAttempts);
+          if (this.pairingPromptActive) {
+            throw new BrokerRpcError("BROWSER_PAIRING_BUSY", "Another pairing prompt is active.");
+          }
+          const now = this.now();
+          if (
+            this.lastPairingPromptAt !== undefined &&
+            now - this.lastPairingPromptAt < PAIRING_PROMPT_COOLDOWN_MS
+          ) {
+            throw new BrokerRpcError(
+              "BROWSER_PAIRING_COOLDOWN",
+              "Browser pairing is temporarily rate limited.",
+            );
+          }
+          this.reserveGlobalPairingAttempt();
+          this.pairingPromptActive = true;
+          let approved: boolean;
+          try {
+            approved = await this.pairingApprover.approve({
+              extensionId: pairing.extensionId,
+              browserInstanceId: pairing.browserInstanceId,
+              pairingCode: pairing.pairingCode,
+              keyFingerprint: browserPublicKeyFingerprint(pairing.publicKey),
+            });
+          } catch {
+            approved = false;
+          } finally {
+            this.pairingPromptActive = false;
+            // Measure cooldown from dismissal, not launch. A timed-out prompt must not permit an
+            // immediate replacement prompt from a fresh agent connection.
+            this.lastPairingPromptAt = this.now();
+          }
+          if (!approved) {
+            throw new BrokerRpcError("BROWSER_PAIRING_DENIED", "Browser pairing was not approved.");
+          }
+          const browserIdentity = {
             extensionId: pairing.extensionId,
             browserInstanceId: pairing.browserInstanceId,
-            pairingCode: pairing.pairingCode,
-            keyFingerprint: browserPublicKeyFingerprint(pairing.publicKey),
-          });
-        } catch {
-          approved = false;
+            publicKey: pairing.publicKey,
+          };
+          const approvedAt = this.now();
+          browserChallenge = createBrowserAuthChallenge(browserIdentity, approvedAt);
+          browserChallengePairsKey = true;
+          return publicBrowserChallenge(browserChallenge);
         } finally {
-          this.pairingPromptActive = false;
-          // Measure cooldown from dismissal, not launch. A timed-out prompt must not permit an
-          // immediate replacement prompt from a fresh agent connection.
-          this.lastPairingPromptAt = this.now();
+          browserAuthTransitionActive = false;
         }
-        browserChallenge = undefined;
-        browserChallengePairsKey = false;
-        if (!approved) {
-          throw new BrokerRpcError("BROWSER_PAIRING_DENIED", "Browser pairing was not approved.");
-        }
-        const browserIdentity = {
-          extensionId: pairing.extensionId,
-          browserInstanceId: pairing.browserInstanceId,
-          publicKey: pairing.publicKey,
-        };
-        const approvedAt = this.now();
-        browserChallenge = createBrowserAuthChallenge(browserIdentity, approvedAt);
-        browserChallengePairsKey = true;
-        return publicBrowserChallenge(browserChallenge);
       }
       if (method === "browser.auth.complete") {
         this.requireAgentContext(context);
         const completion = BrowserAuthCompleteSchema.parse(params);
+        clearExpiredBrowserChallenge();
         const challenge = browserChallenge;
-        const pairsKey = browserChallengePairsKey;
-        browserChallenge = undefined;
-        browserChallengePairsKey = false;
         if (
+          browserAuthTransitionActive ||
           challenge === undefined ||
-          completion.challengeId !== challenge.challengeId ||
-          !verifyBrowserAuthSignature(challenge, completion.signature)
+          completion.challengeId !== challenge.challengeId
         ) {
           throw new BrokerRpcError(
             "BROWSER_AUTHENTICATION_FAILED",
             "Browser challenge proof was rejected.",
           );
         }
-        if (pairsKey) {
-          await persistApprovedBrowserPairing(
-            this.paths.baseDirectory,
-            {
-              extensionId: challenge.extensionId,
-              browserInstanceId: challenge.browserInstanceId,
-              publicKey: challenge.publicKey,
-            },
-            this.now(),
-          );
+        const pairsKey = browserChallengePairsKey;
+        browserChallenge = undefined;
+        browserChallengePairsKey = false;
+        browserAuthTransitionActive = true;
+        try {
+          if (!verifyBrowserAuthSignature(challenge, completion.signature, this.now())) {
+            throw new BrokerRpcError(
+              "BROWSER_AUTHENTICATION_FAILED",
+              "Browser challenge proof was rejected.",
+            );
+          }
+          if (pairsKey) {
+            await persistApprovedBrowserPairing(
+              this.paths.baseDirectory,
+              {
+                extensionId: challenge.extensionId,
+                browserInstanceId: challenge.browserInstanceId,
+                publicKey: challenge.publicKey,
+              },
+              this.now(),
+            );
+          }
+          await this.requireState().disconnected(context);
+          const browserAuth: AuthHello = {
+            ...context.auth,
+            role: "browser",
+            clientId: "tabgrant-extension",
+            taskId: "browser-session",
+            instanceId: challenge.browserInstanceId,
+          };
+          context = this.requireState().createContext(browserAuth, peer);
+          return { authenticated: true, role: "browser" };
+        } finally {
+          browserAuthTransitionActive = false;
         }
-        await this.requireState().disconnected(context);
-        const browserAuth: AuthHello = {
-          ...context.auth,
-          role: "browser",
-          clientId: "tabgrant-extension",
-          taskId: "browser-session",
-          instanceId: challenge.browserInstanceId,
-        };
-        context = this.requireState().createContext(browserAuth, peer);
-        return { authenticated: true, role: "browser" };
       }
       return this.requireState().handle(context, method, params);
     });

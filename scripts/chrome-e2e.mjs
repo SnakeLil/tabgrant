@@ -8,6 +8,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { Browser, getInstalledBrowsers } from "@puppeteer/browsers";
 import WebSocket from "ws";
+import { dispatchCdpResponse } from "./cdp-response.mjs";
+import { resolveChromeE2EPolicy } from "./chrome-e2e-policy.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const builtExtensionPath = join(root, "apps", "extension", "dist");
@@ -15,17 +17,26 @@ const cliPath = join(root, "apps", "broker", "dist", "cli.js");
 const nativeHostPath = join(root, "apps", "broker", "dist", "native-host-entry.js");
 const browserCachePath = join(root, ".cache", "tabgrant-browsers");
 const chromePath = await findChrome();
-const mode = process.argv[2];
-if (mode !== "--ci" && mode !== "--manual") {
-  throw new Error("Chrome E2E requires exactly one mode: --ci or --manual.");
-}
-const manualUserPresence = mode === "--manual";
+const e2ePolicy = resolveChromeE2EPolicy(process.argv.slice(2), process.env, platform());
+const manualUserPresence = e2ePolicy.manualUserPresence;
 const temporaryDirectory = await mkdtemp(join(tmpdir(), "tabgrant-chrome-e2e-"));
 const testExtensionPath = join(temporaryDirectory, "extension");
 const profilePath = join(temporaryDirectory, "profile");
 const statePath = join(temporaryDirectory, "state");
 const profileManifestPath = join(profilePath, "NativeMessagingHosts", "io.tabgrant.bridge.json");
 const childEnvironment = { ...process.env, TABGRANT_HOME: statePath };
+if (
+  e2ePolicy.linuxCiNoSandbox &&
+  (!temporaryDirectory.startsWith(`${tmpdir()}${sep}tabgrant-chrome-e2e-`) ||
+    !profilePath.startsWith(`${temporaryDirectory}${sep}`))
+) {
+  throw new Error("Refusing to disable the Chrome sandbox outside the disposable E2E profile.");
+}
+if (e2ePolicy.linuxCiNoSandbox) {
+  process.stderr.write(
+    `TABGRANT_CI_CHROME_SANDBOX_DISABLED: Linux CI only; disposable profile ${profilePath}\n`,
+  );
+}
 
 let chrome;
 let daemonChild;
@@ -74,12 +85,7 @@ class CdpConnection {
   constructor(url) {
     this.#socket = new WebSocket(url);
     this.#socket.on("message", (data) => {
-      const message = JSON.parse(data.toString());
-      const resolvePromise = this.#pending.get(message.id);
-      if (resolvePromise) {
-        this.#pending.delete(message.id);
-        resolvePromise(message);
-      }
+      dispatchCdpResponse(data.toString(), this.#pending);
     });
   }
 
@@ -339,6 +345,7 @@ try {
         injectedPairingApproverVerified: !manualUserPresence,
         osPairingUserPresenceVerified: manualUserPresence,
         globalNativeManifestTouched: false,
+        chromeSandboxDisabledForDisposableLinuxCi: e2ePolicy.linuxCiNoSandbox,
         revoked: true,
         syntheticLoopbackHostPermission: !manualUserPresence,
         realActiveTabGestureVerified: manualUserPresence,
@@ -439,6 +446,7 @@ async function startChrome(url, headless = true) {
     chromePath,
     [
       ...(headless ? ["--headless=new"] : ["--start-maximized"]),
+      ...e2ePolicy.chromeSandboxArgs,
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-background-networking",

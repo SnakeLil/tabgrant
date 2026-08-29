@@ -194,7 +194,7 @@ telemetry fields.
 
 ## Current verification boundary
 
-The 106 automated tests (62 broker, 18 extension, 8 protocol, and 18 policy) verify
+The 109 automated tests (63 broker, 20 extension, 8 protocol, and 18 policy) verify
 session isolation/disconnect revocation, output
 budgets, audit HMAC/rotation behavior, key separation, and a spawned MCP STDIO
 subprocess. A separate Chrome for Testing 152.0.7977.64 CI E2E completes

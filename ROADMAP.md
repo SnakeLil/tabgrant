@@ -25,6 +25,10 @@ Implemented in the current source:
       only a valid extension-key signature persists the public key in owner-only
       `browser-pairing.json` and upgrades that connection. No pairing state is
       persisted before that proof succeeds.
+- [x] Startup authentication and popup pairing are serialized on the exact native
+      port. Each broker connection admits one authentication transition or live
+      challenge; competing starts/pairs fail busy, and an unknown challenge ID
+      does not consume the valid challenge.
 - [x] Pairing fails closed when the OS UI is unavailable, cancelled, or timed out,
       and on Windows. The prompt budget allows one active prompt, a 30-second
       cooldown, three attempts per connection per five minutes, and three globally
@@ -72,8 +76,8 @@ Implemented in the current source:
 
 Current automated evidence, recorded on 2026-08-30:
 
-- [x] `pnpm check` passes formatting, lint, type checking, 106 tests (62 broker,
-      18 extension, 8 protocol, and 18 policy), and the extension-authority
+- [x] `pnpm check` passes formatting, lint, type checking, 109 tests (63 broker,
+      20 extension, 8 protocol, and 18 policy), and the extension-authority
       security gate.
 - [x] `pnpm build` produces the MV3 extension and broker CLI, MCP, and native-host
       executables.
@@ -94,6 +98,9 @@ Current automated evidence, recorded on 2026-08-30:
       not exercise the production OS prompt.
 - [x] Chrome E2E writes the Native Messaging manifest only inside its temporary
       profile and does not touch a global browser manifest.
+- [x] The GitHub Ubuntu job uses a dedicated disposable-profile command for its
+      `--no-sandbox` workaround. That option is rejected outside explicit Linux
+      `CI=true` runs; default and manual E2E commands retain Chrome's sandbox.
 - [x] The Chrome E2E refuses a production manifest with `host_permissions`, then
       copies the extension and adds only `http://127.0.0.1/*` to the temporary test
       manifest. Production continues to use `activeTab` with no host permissions.

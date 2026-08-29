@@ -175,7 +175,7 @@ the global budget and delay legitimate pairing until the window recovers.
 
 ## Verification boundary
 
-Current automated evidence includes 106 tests: 62 broker, 18 extension, 8 protocol,
+Current automated evidence includes 109 tests: 63 broker, 20 extension, 8 protocol,
 and 18 policy. A real MCP SDK client spawns and negotiates with the MCP subprocess.
 Broker-focused command integration is mocked. A separate Chrome for Testing
 152.0.7977.64 CI E2E completes extension-key pairing, MCP startup, Native
