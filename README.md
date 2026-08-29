@@ -3,6 +3,8 @@
 > User-granted, local-first access to real browser sessions for AI agents.
 
 [![Developer Preview](https://img.shields.io/badge/status-developer%20preview-orange)](./ROADMAP.md)
+[![CI](https://github.com/SnakeLil/tabgrant/actions/workflows/ci.yml/badge.svg)](https://github.com/SnakeLil/tabgrant/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/SnakeLil/tabgrant/actions/workflows/codeql.yml/badge.svg)](https://github.com/SnakeLil/tabgrant/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
 TabGrant connects an MCP client to a tab in the user's existing Chromium-based
