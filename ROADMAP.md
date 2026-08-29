@@ -119,6 +119,12 @@ Current automated evidence, recorded on 2026-08-30:
       verified through the GitHub API.
 - [x] Dependency audit, Dependabot, and CodeQL currently report no open critical
       or high-severity vulnerability; secret scanning reports no open alert.
+- [x] `main` requires pull requests, strict up-to-date branches, linear history,
+      resolved conversations, and eight App-bound checks: Node 20.19.0, Node 22,
+      macOS package smoke, Chrome for Testing, DCO, dependency review, the CodeQL
+      workflow, and the GitHub Advanced Security CodeQL result. Administrators
+      are included; force pushes and branch deletion are disabled. [PR
+      #6](https://github.com/SnakeLil/tabgrant/pull/6) verified the protected flow.
 
 Still required before declaring v0.1 release acceptance:
 
@@ -134,11 +140,6 @@ Still required before declaring v0.1 release acceptance:
       `--declared-model-provider` configuration.
 - [ ] Verify at least the minimum supported browser version and one current Chrome
       version on both macOS and Linux.
-- [ ] Run the same required checks on the protected default branch in GitHub CI.
-- [ ] Protect the default branch with required CI, DCO, dependency-review, and
-      CodeQL checks, then verify that the protected flow remains usable by the
-      bootstrap maintainer. Keep private reporting and the repository security
-      controls operational for the lifetime of the public preview.
 - [ ] Publish checksums and exact source-install limitations with the tag.
 - [ ] Document release support around [branded Chrome's removal of command-line
       unpacked-extension loading in Chrome
