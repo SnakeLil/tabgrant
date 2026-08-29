@@ -106,6 +106,19 @@ Current automated evidence, recorded on 2026-08-30:
       manifest. Production continues to use `activeTab` with no host permissions.
 - [x] The popup E2E verifies the **Client-declared model provider** label and its
       downstream-enforcement warning.
+- [x] [GitHub CI run 33274085820](https://github.com/SnakeLil/tabgrant/actions/runs/33274085820)
+      passes Node 20.19.0, Node 22, macOS build/package smoke, and the disposable
+      Ubuntu Chrome for Testing chain on the public default branch.
+- [x] [CodeQL v4 run 33274085857](https://github.com/SnakeLil/tabgrant/actions/runs/33274085857)
+      passes on the same commit. Its first-scan high-severity CDP dispatch finding
+      was fixed in code and automatically closed by the subsequent analysis; it
+      was not dismissed.
+- [x] The public repository has private vulnerability reporting, discussions,
+      CodeQL, secret scanning with push protection, Dependabot alerts/security
+      updates, read-only workflow tokens, and full-SHA-only Actions enabled and
+      verified through the GitHub API.
+- [x] Dependency audit, Dependabot, and CodeQL currently report no open critical
+      or high-severity vulnerability; secret scanning reports no open alert.
 
 Still required before declaring v0.1 release acceptance:
 
@@ -122,12 +135,10 @@ Still required before declaring v0.1 release acceptance:
 - [ ] Verify at least the minimum supported browser version and one current Chrome
       version on both macOS and Linux.
 - [ ] Run the same required checks on the protected default branch in GitHub CI.
-- [ ] When making the repository public, enable private vulnerability reporting
-      immediately, then verify it before announcing the project. Also verify
-      branch protection, required CI and DCO checks, CodeQL, secret scanning, and
-      Dependabot. Keep private reporting operational for the lifetime of the
-      public preview.
-- [ ] Confirm no known critical or high-severity vulnerability remains open.
+- [ ] Protect the default branch with required CI, DCO, dependency-review, and
+      CodeQL checks, then verify that the protected flow remains usable by the
+      bootstrap maintainer. Keep private reporting and the repository security
+      controls operational for the lifetime of the public preview.
 - [ ] Publish checksums and exact source-install limitations with the tag.
 - [ ] Document release support around [branded Chrome's removal of command-line
       unpacked-extension loading in Chrome
