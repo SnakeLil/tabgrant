@@ -71,13 +71,15 @@ Implemented in the current source:
       path](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
       and is primarily a test channel.
 - [x] Native-host installation is create-only and never replaces an existing
-      manifest. Uninstall pins and rechecks the inspected inode and bytes, is
-      idempotent when absent, and is required before reinstalling a changed manifest.
+      manifest. The default mode-`0700` launcher pins verified absolute Node and
+      host-entry paths. Uninstall pins and rechecks inspected bytes, removes only
+      a recognized generated launcher, is idempotent when absent, and is required
+      before reinstalling a changed manifest.
 
 Current automated evidence, recorded on 2026-08-30:
 
-- [x] `pnpm check` passes formatting, lint, type checking, 109 tests (63 broker,
-      20 extension, 8 protocol, and 18 policy), and the extension-authority
+- [x] `pnpm check` passes formatting, lint, type checking, 134 tests (83 broker,
+      25 extension, 8 protocol, and 18 policy), and the extension-authority
       security gate.
 - [x] `pnpm build` produces the MV3 extension and broker CLI, MCP, and native-host
       executables.
@@ -94,8 +96,9 @@ Current automated evidence, recorded on 2026-08-30:
       `pnpm e2e:chrome:ci` has completed the extension-key pairing, MCP, Native
       Messaging, popup rendering/grant, synthetic loopback-page snapshot,
       highlight, scroll, revoke, password redaction, and audit no-content chain.
-      It imports broker source with an exact-match test approver and therefore does
-      not exercise the production OS prompt.
+      Chrome runs with no Node executable in `PATH`, verifying the pinned launcher
+      and pre-pair popup status. It imports broker source with an exact-match test
+      approver and therefore does not exercise the production OS prompt.
 - [x] Chrome E2E writes the Native Messaging manifest only inside its temporary
       profile and does not touch a global browser manifest.
 - [x] The GitHub Ubuntu job uses a dedicated disposable-profile command for its

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { access, chmod, cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { platform, tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,8 +23,11 @@ const temporaryDirectory = await mkdtemp(join(tmpdir(), "tabgrant-chrome-e2e-"))
 const testExtensionPath = join(temporaryDirectory, "extension");
 const profilePath = join(temporaryDirectory, "profile");
 const statePath = join(temporaryDirectory, "state");
+const guiPath = join(temporaryDirectory, "gui-path-without-node");
 const profileManifestPath = join(profilePath, "NativeMessagingHosts", "io.tabgrant.bridge.json");
 const childEnvironment = { ...process.env, TABGRANT_HOME: statePath };
+const chromeEnvironment = { ...childEnvironment, PATH: guiPath };
+await mkdir(guiPath, { mode: 0o700 });
 if (
   e2ePolicy.linuxCiNoSandbox &&
   (!temporaryDirectory.startsWith(`${tmpdir()}${sep}tabgrant-chrome-e2e-`) ||
@@ -48,6 +51,7 @@ let expectedExtensionId;
 let expectedPairingCode;
 let expectedBrowserInstanceId;
 let expectedKeyFingerprint;
+let nativeHostLauncherPath;
 const pairingApprovals = [];
 const childErrorReaders = new WeakMap();
 
@@ -147,7 +151,8 @@ try {
   await stopChild(chrome);
   chrome = undefined;
 
-  await writeDisposableNativeManifest(extensionId);
+  const nativeInstall = await writeDisposableNativeManifest(extensionId);
+  nativeHostLauncherPath = nativeInstall.nativeHostPath;
 
   if (manualUserPresence) {
     daemonChild = spawn(process.execPath, [cliPath, "daemon", "--quiet"], {
@@ -195,6 +200,7 @@ try {
   let pairingCode;
   try {
     pairingCode = await waitForPairingCode(popup);
+    await waitForPopupStatus(popup, "Pairing required");
     const identity = await readPairingIdentity(popup);
     expectedExtensionId = extensionId;
     expectedPairingCode = pairingCode;
@@ -345,6 +351,9 @@ try {
         injectedPairingApproverVerified: !manualUserPresence,
         osPairingUserPresenceVerified: manualUserPresence,
         globalNativeManifestTouched: false,
+        pinnedNativeHostLauncherVerified: Boolean(nativeHostLauncherPath),
+        chromePathScrubbedOfNode: true,
+        prePairStatusDistinguishedFromOffline: true,
         chromeSandboxDisabledForDisposableLinuxCi: e2ePolicy.linuxCiNoSandbox,
         revoked: true,
         syntheticLoopbackHostPermission: !manualUserPresence,
@@ -399,20 +408,27 @@ async function prepareTestExtension() {
 }
 
 async function writeDisposableNativeManifest(extensionId) {
-  await mkdir(join(profilePath, "NativeMessagingHosts"), { recursive: true, mode: 0o700 });
-  await chmod(nativeHostPath, 0o755);
-  const manifest = {
-    name: "io.tabgrant.bridge",
-    description: "TabGrant disposable Chrome E2E bridge",
-    path: nativeHostPath,
-    type: "stdio",
-    allowed_origins: [`chrome-extension://${extensionId}/`],
-  };
-  await writeFile(profileManifestPath, `${JSON.stringify(manifest, null, 2)}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
-    flag: "wx",
-  });
+  const { installNativeHostAtPaths, parseNativeHostLauncher } =
+    await import("../apps/broker/src/installer.ts");
+  const install = await installNativeHostAtPaths(
+    { extensionId, browser: "chrome-for-testing" },
+    {
+      manifestPath: profileManifestPath,
+      nativeHostEntryPath: nativeHostPath,
+      nodePath: process.execPath,
+    },
+  );
+  const launcherContents = await readFile(install.nativeHostPath, "utf8");
+  const launcher = parseNativeHostLauncher(launcherContents);
+  if (!launcher || launcher.nativeHostPath !== nativeHostPath) {
+    throw new Error(
+      "Chrome E2E installer did not produce the expected pinned native-host launcher.",
+    );
+  }
+  if (((await stat(install.nativeHostPath)).mode & 0o777) !== 0o700) {
+    throw new Error("Chrome E2E native-host launcher permissions are not 0700.");
+  }
+  return install;
 }
 
 function startSyntheticPage() {
@@ -460,7 +476,7 @@ async function startChrome(url, headless = true) {
       "--remote-debugging-port=0",
       url,
     ],
-    { cwd: root, env: childEnvironment, stdio: ["ignore", "ignore", "pipe"] },
+    { cwd: root, env: chromeEnvironment, stdio: ["ignore", "ignore", "pipe"] },
   );
   childErrorReaders.set(child, captureErrors(child));
   return child;
@@ -631,6 +647,17 @@ async function waitForPairingCode(connection) {
     await delay(50);
   }
   throw new Error("TabGrant popup did not expose an extension-generated pairing code.");
+}
+
+async function waitForPopupStatus(connection, expectedStatus) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const status = await connection.evaluate(
+      'document.getElementById("broker-status")?.textContent?.trim() ?? ""',
+    );
+    if (status === expectedStatus) return;
+    await delay(50);
+  }
+  throw new Error(`TabGrant popup did not report ${JSON.stringify(expectedStatus)}.`);
 }
 
 async function readPairingIdentity(connection) {

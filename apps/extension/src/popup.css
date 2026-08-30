@@ -55,6 +55,10 @@ h2 {
   background: #d9f7e3;
   color: #145a2e;
 }
+.status.reachable {
+  background: #fff3cd;
+  color: #704e00;
+}
 .card {
   margin: 10px 0 14px;
   padding: 12px;
@@ -174,6 +178,10 @@ footer {
   }
   .status {
     background: #3a3f49;
+  }
+  .status.reachable {
+    background: #493b17;
+    color: #ffe7a3;
   }
   .warning {
     background: #493b17;

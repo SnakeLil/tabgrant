@@ -43,6 +43,33 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
+      # Some hosted-toolcache Node builds are group/world-writable. Keep the
+      # production installer fail-closed and run CI through an owner-controlled
+      # copy instead of weakening its runtime validation.
+      - name: Prepare owner-controlled Node.js runtime
+        shell: bash
+        run: |
+          runtime_dir="$(mktemp -d "${RUNNER_TEMP}/tabgrant-node-runtime.XXXXXX")"
+          chmod 0700 "$runtime_dir"
+          source_runtime="$(node -p 'require("node:fs").realpathSync(process.execPath)')"
+          install -m 0755 "$source_runtime" "$runtime_dir/node"
+          "$runtime_dir/node" --version
+          echo "$runtime_dir" >> "$GITHUB_PATH"
+          echo "TABGRANT_CI_NODE_RUNTIME_DIR=$runtime_dir" >> "$GITHUB_ENV"
+
+      - name: Verify owner-controlled Node.js runtime
+        shell: bash
+        run: |
+          resolved_node="$(node -p 'require("node:fs").realpathSync(process.execPath)')"
+          test "$resolved_node" = "${TABGRANT_CI_NODE_RUNTIME_DIR}/node"
+          test "$(stat -c '%a' "$TABGRANT_CI_NODE_RUNTIME_DIR")" = "700"
+          test "$(stat -c '%u' "$TABGRANT_CI_NODE_RUNTIME_DIR")" = "$(id -u)"
+          test "$(stat -c '%a' "$resolved_node")" = "755"
+          test "$(stat -c '%u' "$resolved_node")" = "$(id -u)"
+          test -f "$resolved_node"
+          test ! -L "$resolved_node"
+          test -x "$resolved_node"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -107,6 +134,32 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
+
+      # Match the verify job's safe runtime boundary before the production
+      # installer is exercised by the browser E2E harness.
+      - name: Prepare owner-controlled Node.js runtime
+        shell: bash
+        run: |
+          runtime_dir="$(mktemp -d "${RUNNER_TEMP}/tabgrant-node-runtime.XXXXXX")"
+          chmod 0700 "$runtime_dir"
+          source_runtime="$(node -p 'require("node:fs").realpathSync(process.execPath)')"
+          install -m 0755 "$source_runtime" "$runtime_dir/node"
+          "$runtime_dir/node" --version
+          echo "$runtime_dir" >> "$GITHUB_PATH"
+          echo "TABGRANT_CI_NODE_RUNTIME_DIR=$runtime_dir" >> "$GITHUB_ENV"
+
+      - name: Verify owner-controlled Node.js runtime
+        shell: bash
+        run: |
+          resolved_node="$(node -p 'require("node:fs").realpathSync(process.execPath)')"
+          test "$resolved_node" = "${TABGRANT_CI_NODE_RUNTIME_DIR}/node"
+          test "$(stat -c '%a' "$TABGRANT_CI_NODE_RUNTIME_DIR")" = "700"
+          test "$(stat -c '%u' "$TABGRANT_CI_NODE_RUNTIME_DIR")" = "$(id -u)"
+          test "$(stat -c '%a' "$resolved_node")" = "755"
+          test "$(stat -c '%u' "$resolved_node")" = "$(id -u)"
+          test -f "$resolved_node"
+          test ! -L "$resolved_node"
+          test -x "$resolved_node"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

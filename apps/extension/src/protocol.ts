@@ -100,6 +100,7 @@ export type PopupRequest =
   | { type: "popup.reconnect" };
 
 export interface PopupState {
+  nativeRelayConnected: boolean;
   brokerConnected: boolean;
   brokerKilled: boolean;
   browserPaired: boolean;
