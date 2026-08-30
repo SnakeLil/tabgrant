@@ -641,6 +641,7 @@ function scheduleExpiry(grant: TabGrant | undefined): void {
 async function popupState(): Promise<PopupState> {
   const state = await pruneExpiredState();
   return {
+    nativeRelayConnected: nativePort !== undefined,
     brokerConnected,
     brokerKilled,
     browserPaired,

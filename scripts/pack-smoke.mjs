@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -115,8 +115,35 @@ try {
   ) {
     throw new Error("packed installer produced an unexpected native-host manifest");
   }
-  if (process.platform !== "win32" && ((await stat(install.nativeHostPath)).mode & 0o111) === 0) {
-    throw new Error("packed native host is not executable");
+  const packedNativeHostEntry = join(installedPackageDirectory, "dist", "native-host-entry.js");
+  if (install.nativeHostPath === packedNativeHostEntry) {
+    throw new Error("packed installer bypassed the pinned native-host launcher");
+  }
+  const launcherMetadata = await stat(install.nativeHostPath);
+  if (process.platform !== "win32" && (launcherMetadata.mode & 0o777) !== 0o700) {
+    throw new Error("packed native-host launcher permissions are not 0700");
+  }
+  const launcherLines = (await readFile(install.nativeHostPath, "utf8")).split("\n");
+  const marker = "# tabgrant-native-host-launcher-v1:";
+  if (
+    launcherLines.length !== 4 ||
+    launcherLines[0] !== "#!/bin/sh" ||
+    !launcherLines[1]?.startsWith(marker)
+  ) {
+    throw new Error("packed installer produced an unrecognized native-host launcher");
+  }
+  const launcher = JSON.parse(
+    Buffer.from(launcherLines[1].slice(marker.length), "base64url").toString("utf8"),
+  );
+  const expectedNativeHostEntry = await realpath(packedNativeHostEntry);
+  if (
+    launcher.version !== 1 ||
+    launcher.nodePath !== (await realpath(process.execPath)) ||
+    launcher.nativeHostPath !== expectedNativeHostEntry
+  ) {
+    throw new Error(
+      `packed native-host launcher did not pin the expected runtime and entry: ${JSON.stringify({ launcher, expectedNodePath: await realpath(process.execPath), expectedNativeHostEntry })}`,
+    );
   }
   const uninstall = JSON.parse(
     run(
@@ -126,7 +153,15 @@ try {
       isolatedEnvironment,
     ),
   );
-  if (uninstall.removed !== true) throw new Error("packed native-host uninstall smoke failed");
+  if (uninstall.removed !== true || uninstall.launcherRemoved !== true) {
+    throw new Error("packed native-host uninstall smoke failed");
+  }
+  try {
+    await stat(install.nativeHostPath);
+    throw new Error("packed native-host uninstall left its generated launcher behind");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
   const repeatedUninstall = JSON.parse(
     run(
       process.execPath,

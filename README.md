@@ -98,6 +98,13 @@ change the extension ID, native-host path, or channel manifest, first run the
 matching `uninstall` command and inspect its result, then install again. A missing
 manifest makes `uninstall` an idempotent no-op.
 
+On macOS and Linux, the manifest points to a unique owner-only launcher created
+beside it with mode `0700`. The launcher records and executes the absolute Node.js
+runtime and native-host entry paths that were verified during installation. This
+keeps a GUI-launched browser independent of shell initialization and nvm's
+`PATH`. If that Node installation is moved or removed, run `uninstall`, rebuild
+with the intended Node runtime, and run `install` again.
+
 Reload the extension. Its popup creates a non-extractable P-256 signing key in
 IndexedDB and shows a session-only, 160-bit pairing code. Select **Pair this extension**.
 The broker opens its production user-presence UI: `osascript` on macOS or
@@ -122,15 +129,16 @@ and an unknown challenge ID cannot consume the valid challenge. The native host
 only relays messages and never receives the
 private key. The native host and MCP adapter can start the broker automatically.
 
-Check the persistent kill state, local secrets, native-host manifest, and broker
-IPC endpoint:
+Check the persistent kill state, local secrets, native-host manifest, pinned
+launcher/runtime/entry, and broker IPC endpoint:
 
 ```bash
 node apps/broker/dist/cli.js doctor --browser chrome
 ```
 
-`doctor` checks local installation state; it is not a real-browser end-to-end
-test.
+`doctor` rejects legacy `#!/usr/bin/env node` native-host entries because they can
+fail under a GUI browser's restricted `PATH`. It checks local installation state;
+it is not a real-browser end-to-end test.
 
 ### 4. Connect Codex through MCP
 
@@ -280,8 +288,8 @@ actions, but those are not exposed by the current MCP server or extension.
 
 As of 2026-08-30, this checkout passes:
 
-- `pnpm check`, including formatting, lint, type checking, 109 automated tests
-  (63 broker, 20 extension, 8 protocol, and 18 policy), and the manifest/source
+- `pnpm check`, including formatting, lint, type checking, 134 automated tests
+  (83 broker, 25 extension, 8 protocol, and 18 policy), and the manifest/source
   security gate;
 - `pnpm build`, producing the extension and three broker executables;
 - `pnpm pack:smoke`, which installs the packed `tabgrant@0.1.0` tarball and runs
@@ -294,7 +302,10 @@ MCP subprocess. Broker unit/integration tests use an in-process mock browser. Th
 separate Chrome for Testing CI E2E completes extension-key pairing, broker
 startup, MCP, Native Messaging, popup rendering and grant, a synthetic
 loopback-page snapshot, highlight, scroll, revoke, password-value redaction, and
-confirmation that the audit contains no page or pairing content. CI imports the
+confirmation that the audit contains no page or pairing content. It launches
+Chrome with a `PATH` containing no Node executable and verifies the production
+installer's pinned launcher, plus the popup's distinct pre-pair `Pairing required`
+state. CI imports the
 broker source and injects a test-only approver that accepts only the exact
 extension ID, browser-instance ID, pairing code, and key fingerprint discovered
 by that run. Production broker startup does not expose that injection path.

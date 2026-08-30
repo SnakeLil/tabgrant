@@ -58,9 +58,13 @@ RPC protocol. The browser manifest restricts the host to the exact installed
 extension ID. The host has no independent tab-selection authority.
 
 The installer publishes the manifest create-only and refuses to replace an
-existing path. Uninstall pins the inspected inode and bytes, refuses a concurrent
-replacement, and is idempotent when the path is already absent. Reconfiguration
-therefore requires an explicit uninstall before reinstall.
+existing path. Its default manifest target is a unique, owner-only mode-`0700`
+launcher in the manifest directory. That launcher uses absolute, install-time
+verified Node.js and native-host entry paths, avoiding dependence on a GUI
+browser's shell environment or nvm `PATH`. Uninstall pins and rechecks the
+inspected manifest and deletes only a strictly recognized, unchanged generated
+launcher; legacy and custom executables are preserved. Reconfiguration therefore
+requires an explicit uninstall before reinstall.
 
 ### Browser extension
 
@@ -264,13 +268,16 @@ integration and threat model.
 
 ## Verification boundary
 
-The 109 unit/integration tests (63 broker, 20 extension, 8 protocol, and 18 policy)
+The 134 unit/integration tests (83 broker, 25 extension, 8 protocol, and 18 policy)
 include a real MCP SDK STDIO client connected to a
 spawned MCP subprocess; broker-focused tests otherwise use an in-process mock
 browser. A separate `pnpm e2e:chrome:ci` run completed on Chrome for Testing
 152.0.7977.64 and exercised extension-key pairing, MCP, Native Messaging,
 extension popup, synthetic page snapshot, highlight, scroll, revoke, password
-redaction, and audit no-content checks. It imports broker source and injects an
+redaction, and audit no-content checks. Chrome's E2E environment has no Node
+executable in `PATH`, so that run also exercises the pinned native-host launcher
+and distinguishes a reachable, unpaired relay from an offline broker. It imports
+broker source and injects an
 exact-match test approver; production startup does not expose that approver.
 
 That E2E writes its Native Messaging manifest only inside a disposable browser

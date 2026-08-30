@@ -32,11 +32,12 @@ pnpm pack:smoke
 Use a disposable browser profile with synthetic accounts for browser testing.
 Never run development builds against your everyday profile or valuable accounts.
 
-`pnpm check` runs formatting, lint, type checking, 109 package/integration tests,
+`pnpm check` runs formatting, lint, type checking, 134 package/integration tests,
 and the extension-authority security gate. The broker suite includes a real MCP
 SDK client connected to a spawned MCP subprocess, but it does not launch Chrome or
 an OS pairing prompt. `pnpm pack:smoke` builds and installs a temporary package
-tarball, verifies its metadata/LICENSE/executables, then executes its CLI.
+tarball, verifies its metadata/LICENSE/executables and pinned native-host
+launcher, then executes its CLI.
 
 The security gate checks the exact production manifest permissions, rejects
 persistent host permissions and selected forbidden browser authorities, blocks a
@@ -94,6 +95,8 @@ Before claiming browser or client compatibility, record a manual end-to-end run:
 1. Build the broker and extension from a clean checkout.
 2. Load the extension in a disposable browser profile.
 3. Install the native host for the observed extension ID and selected channel.
+   Confirm `doctor` validates the generated launcher, pinned Node runtime, and
+   native-host entry; a legacy `#!/usr/bin/env node` manifest target is not valid.
 4. Open the extension popup, keep the session-only 160-bit code visible, and
    select **Pair this extension**. Compare the full code and identity fields with the
    broker-owned macOS `osascript` or Linux `zenity` prompt before approving.

@@ -1,4 +1,5 @@
 import type { PendingAccessRequest, PopupState, TabGrant } from "./protocol.js";
+import { brokerStatusPresentation } from "./popup-status.js";
 
 const brokerStatus = requiredElement<HTMLSpanElement>("broker-status");
 const grantSection = requiredElement<HTMLElement>("grant-section");
@@ -34,12 +35,10 @@ async function request(message: unknown): Promise<void> {
 }
 
 function render(state: PopupState): void {
-  brokerStatus.textContent = state.brokerKilled
-    ? "Broker locked"
-    : state.brokerConnected
-      ? "Broker connected"
-      : "Broker offline";
-  brokerStatus.classList.toggle("connected", state.brokerConnected && !state.brokerKilled);
+  const status = brokerStatusPresentation(state);
+  brokerStatus.textContent = status.text;
+  brokerStatus.classList.toggle("connected", status.tone === "connected");
+  brokerStatus.classList.toggle("reachable", status.tone === "reachable");
   pairingSection.hidden = state.browserPaired;
   pairingCode.textContent = state.pairingCode ?? "Waiting for broker…";
   renderGrant(state.grant);

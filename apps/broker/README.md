@@ -42,9 +42,14 @@ tabgrant version
 
 - `install` creates a browser-specific Native Messaging manifest restricted to
   the exact 32-character extension ID. It is create-only and refuses to overwrite
-  an existing path; it does not create the broker secret.
+  an existing path. By default, the manifest points to a unique mode-`0700`
+  launcher that pins the absolute verified Node runtime and native-host entry, so
+  GUI browsers do not depend on shell or nvm `PATH`; it does not create the broker
+  secret.
 - `doctor` checks the persistent kill state, IPC and authority secrets, selected
-  browser manifest, and broker IPC endpoint.
+  browser manifest, generated launcher, pinned Node runtime, native-host entry,
+  and broker IPC endpoint. It rejects legacy `#!/usr/bin/env node` manifest
+  targets that can fail under a GUI browser's restricted `PATH`.
 - `status` reports broker and extension connection state without enumerating tabs.
 - `kill` writes an owner-only persistent disabled marker directly; there is no
   `broker.kill` RPC. The running broker's marker monitor then revokes current
@@ -52,11 +57,12 @@ tabgrant version
   blocked afterward.
 - `enable --confirm` is the explicit local action that removes the kill marker and
   allows the broker to start again.
-- `uninstall` removes only the TabGrant-owned native-host manifest for the selected
-  browser. It pins and rechecks the inspected inode and bytes, refuses to remove a
-  concurrently replaced manifest, and is idempotent when absent. It does not
-  remove the browser extension or runtime state. Reinstallation with changed
-  values requires uninstall first.
+- `uninstall` removes only the TabGrant-owned native-host manifest and a strictly
+  recognized generated launcher for the selected browser. It pins and rechecks
+  the inspected inode and bytes, refuses to remove a concurrently replaced file,
+  and is idempotent when absent. It preserves legacy or custom host executables
+  and does not remove the browser extension or runtime state. Reinstallation with
+  changed values requires uninstall first.
 - Browser pairing is initiated only by the extension popup. The production broker
   owns the macOS `osascript` or Linux `zenity` approval prompt; there is no CLI
   pairing command.
@@ -74,7 +80,10 @@ The installer currently supports macOS and Linux:
 | `brave`              | `~/Library/Application Support/BraveSoftware/Brave-Browser` | `$XDG_CONFIG_HOME/BraveSoftware/Brave-Browser`, otherwise `~/.config/BraveSoftware/Brave-Browser` |
 
 The manifest is written under `NativeMessagingHosts/io.tabgrant.bridge.json` in
-that directory. [Chrome for Testing 146 and newer use the independent
+that directory, and its generated launcher is created in the same
+`NativeMessagingHosts` directory. If the pinned Node installation moves or is
+removed, uninstall and reinstall the host with the intended runtime. [Chrome for
+Testing 146 and newer use the independent
 `ChromeForTesting`/`google-chrome-for-testing` location](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging);
 this channel is primarily for disposable automated testing. The source implements
 all five mappings, but real-browser compatibility for every OS/channel combination
@@ -258,7 +267,9 @@ pnpm e2e:chrome:ci
 The recorded CI run on Chrome for Testing 152.0.7977.64 exercised extension-key
 pairing, MCP, Native Messaging host, extension popup, and a synthetic loopback
 page through snapshot, highlight, scroll, revoke, password redaction, and audit
-no-content checks. The harness imports broker source and injects a test approver
+no-content checks. Chrome runs with a `PATH` containing no Node executable; the
+test verifies the production pinned launcher and the popup's pre-pair `Pairing
+required` state. The harness imports broker source and injects a test approver
 that accepts only the exact extension identity, code, and fingerprint observed in
 that run. It therefore exercises the challenge/signature/persistence chain but
 does not exercise production `osascript` or `zenity`.
@@ -275,5 +286,5 @@ real macOS/Linux pairing prompt, and wait for human toolbar and grant clicks. Th
 manual OS/UI flow is still being debugged and has not produced claimed evidence.
 It requires a graphical session and Linux `zenity`.
 
-The current automated suite contains 109 tests: 63 broker, 20 extension, 8
+The current automated suite contains 134 tests: 83 broker, 25 extension, 8
 protocol, and 18 policy.

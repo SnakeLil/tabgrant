@@ -180,9 +180,14 @@ copying the extension into a temporary directory. Only that test copy receives
 production artifact and is removed after the run.
 
 Native-host installation is create-only: it refuses to overwrite an existing
-manifest. Uninstall pins and validates the inspected inode and bytes before
-removal, refuses a concurrently replaced path, and is idempotent when absent.
-Changing an installation requires uninstall followed by install.
+manifest. The default manifest target is a mode-`0700`, owner-only generated
+launcher containing canonical metadata and absolute, verified Node.js and
+native-host entry paths. This removes ambient shell/nvm `PATH` from browser
+startup. Uninstall pins and validates the inspected manifest inode and bytes,
+then removes only a strictly named, canonical, unchanged generated launcher;
+legacy and custom host executables are preserved. It refuses concurrently
+replaced paths and is idempotent when absent. Changing an installation requires
+uninstall followed by install.
 
 Grant UI runs in the extension popup. The service worker rechecks tab origin and
 document identity immediately before execution. The content bridge validates its
@@ -284,7 +289,7 @@ and release/rollback rehearsal.
 
 ## Verification boundary
 
-The 109 automated tests comprise 63 broker, 20 extension, 8 protocol, and 18 policy
+The 134 automated tests comprise 83 broker, 25 extension, 8 protocol, and 18 policy
 tests. They include a real MCP SDK STDIO client spawning the MCP subprocess,
 session isolation and disconnect revocation, pairing/challenge boundaries,
 resource limits, persistent kill, installer race resistance, key separation, and
@@ -294,7 +299,10 @@ Broker-focused integration uses a mock browser connection. Separately,
 `pnpm e2e:chrome:ci` has completed on Chrome for Testing 152.0.7977.64 with
 extension-key pairing, MCP, Native Messaging host, popup grant, and synthetic page
 snapshot/highlight/scroll/revoke. It confirms password values are redacted and
-page/pairing content is absent from audit records. The CI harness imports
+page/pairing content is absent from audit records. Chrome runs with no Node
+executable in `PATH`, verifying the pinned native-host launcher, and the popup
+must report `Pairing required` before pairing instead of `Broker offline`. The CI
+harness imports
 `BrokerDaemon` source and injects an approver that accepts only the exact
 extension identity, pairing code, and fingerprint observed in that run.
 
