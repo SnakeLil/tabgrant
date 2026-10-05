@@ -46,7 +46,7 @@
     "typecheck": "pnpm --filter @tabgrant/protocol build && pnpm --filter @tabgrant/policy build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "zod": "4.5.4"
   },
   "devDependencies": {
